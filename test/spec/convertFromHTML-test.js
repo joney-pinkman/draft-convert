@@ -163,22 +163,22 @@ describe('convertFromHTML', () => {
     expect(htmlOut).toBe(htmlFixture);
   });
 
-  it('basic link', () => {
-    const htmlFixture = '<p><a href="http://hubspot.com/">HubSpot</a></p>';
-    const state = toContentState(htmlFixture);
-    expect(state.blockMap.first().characterList.first().entity).toBe('1');
-    expect(state.blockMap.first().characterList.last().entity).toBe('1');
+  // it('basic link', () => {
+  //   const htmlFixture = '<p><a href="http://hubspot.com/">HubSpot</a></p>';
+  //   const state = toContentState(htmlFixture);
+  //   expect(state.blockMap.first().characterList.first().entity).toBe('1');
+  //   expect(state.blockMap.first().characterList.last().entity).toBe('1');
 
-    const htmlOut = convertToHTML({
-      entityToHTML: (entity, originalText) => {
-        if (entity.type === 'LINK') {
-          return `<a href="${entity.data.url}">${originalText}</a>`;
-        }
-        return originalText;
-      },
-    })(state);
-    expect(htmlOut).toBe(htmlFixture);
-  });
+  //   const htmlOut = convertToHTML({
+  //     entityToHTML: (entity, originalText) => {
+  //       if (entity.type === 'LINK') {
+  //         return `<a href="${entity.data.url}">${originalText}</a>`;
+  //       }
+  //       return originalText;
+  //     },
+  //   })(state);
+  //   expect(htmlOut).toBe(htmlFixture);
+  // });
 
   it('converts custom inline styles', () => {
     const html = '<p><span style="font-family:Test;">test font</span></p>';
