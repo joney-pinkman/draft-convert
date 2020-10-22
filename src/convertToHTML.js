@@ -38,92 +38,100 @@ const convertToHTML = ({
       blockTypeObjectFunction(defaultBlockHTML)
     );
   }
-
-  const rawState = convertToRaw(contentState);
-
-  let listStack = [];
-
-  let result = rawState.blocks
-    .map(block => {
-      const { type, depth } = block;
-
-      let closeNestTags = '';
-      let openNestTags = '';
-
-      const blockHTMLResult = getBlockHTML(block);
-      if (!blockHTMLResult) {
-        throw new Error(
-          `convertToHTML: missing HTML definition for block with type ${
-            block.type
-          }`
-        );
-      }
-
-      if (!blockHTMLResult.nest) {
-        // this block can't be nested, so reset all nesting if necessary
-        closeNestTags = listStack.reduceRight((string, nestedBlock) => {
-          return string + getNestedBlockTags(getBlockHTML(nestedBlock)).nestEnd;
-        }, '');
-        listStack = [];
-      } else {
-        while (
-          depth + 1 !== listStack.length ||
-          type !== listStack[depth].type
-        ) {
-          if (depth + 1 === listStack.length) {
-            // depth is right but doesn't match type
-            const blockToClose = listStack[depth];
-            closeNestTags += getNestedBlockTags(getBlockHTML(blockToClose))
-              .nestEnd;
-            openNestTags += getNestedBlockTags(getBlockHTML(block)).nestStart;
-            listStack[depth] = block;
-          } else if (depth + 1 < listStack.length) {
-            const blockToClose = listStack[listStack.length - 1];
-            closeNestTags += getNestedBlockTags(getBlockHTML(blockToClose))
-              .nestEnd;
-            listStack = listStack.slice(0, -1);
-          } else {
-            openNestTags += getNestedBlockTags(getBlockHTML(block)).nestStart;
-            listStack.push(block);
+  
+  function blocksConvert(blocks) {
+ 
+    let listStack = [];
+  
+    let result = blocks
+      .map(block => {
+        const { type, depth } = block;
+        
+        let closeNestTags = '';
+        let openNestTags = '';
+        
+        const blockHTMLResult = getBlockHTML(block);
+        
+        if (!blockHTMLResult) {
+          throw new Error(
+            `convertToHTML: missing HTML definition for block with type ${
+              block.type
+            }`
+          );
+        }
+  
+        if (!blockHTMLResult.nest) {
+          // this block can't be nested, so reset all nesting if necessary
+          closeNestTags = listStack.reduceRight((string, nestedBlock) => {
+            return string + getNestedBlockTags(getBlockHTML(nestedBlock)).nestEnd;
+          }, '');
+          listStack = [];
+        } else {
+          while (
+            depth + 1 !== listStack.length ||
+            type !== listStack[depth].type
+          ) {
+            if (depth + 1 === listStack.length) {
+              // depth is right but doesn't match type
+              const blockToClose = listStack[depth];
+              closeNestTags += getNestedBlockTags(getBlockHTML(blockToClose))
+                .nestEnd;
+              openNestTags += getNestedBlockTags(blockHTMLResult).nestStart;
+              listStack[depth] = block;
+            } else if (depth + 1 < listStack.length) {
+              const blockToClose = listStack[listStack.length - 1];
+              closeNestTags += getNestedBlockTags(getBlockHTML(blockToClose))
+                .nestEnd;
+              listStack = listStack.slice(0, -1);
+            } else {
+              openNestTags += getNestedBlockTags(blockHTMLResult).nestStart;
+              listStack.push(block);
+            }
           }
         }
-      }
-
-      const innerHTML = blockInlineStyles(
-        blockEntities(encodeBlock(block), rawState.entityMap, entityToHTML),
-        styleToHTML
-      );
-
-      const blockHTML = getBlockTags(getBlockHTML(block));
-
-      let html;
-
-      if (typeof blockHTML === 'string') {
-        html = blockHTML;
-      } else {
-        html = blockHTML.start + innerHTML + blockHTML.end;
-      }
-
-      if (
-        innerHTML.length === 0 &&
-        Object.prototype.hasOwnProperty.call(blockHTML, 'empty')
-      ) {
-        if (React.isValidElement(blockHTML.empty)) {
-          html = ReactDOMServer.renderToStaticMarkup(blockHTML.empty);
+        
+        const innerHTML = block.children && block.children.length ? blocksConvert(block.children) : blockInlineStyles(
+          blockEntities(encodeBlock(block), rawState.entityMap, entityToHTML),
+          styleToHTML
+        );
+  
+        const blockHTML = getBlockTags(blockHTMLResult);
+  
+        let html;
+  
+        if (typeof blockHTML === 'string') {
+          html = blockHTML;
         } else {
-          html = blockHTML.empty;
+          html = blockHTML.start + innerHTML + blockHTML.end;
         }
-      }
+  
+        if (
+          innerHTML.length === 0 &&
+          Object.prototype.hasOwnProperty.call(blockHTML, 'empty')
+        ) {
+          if (React.isValidElement(blockHTML.empty)) {
+            html = ReactDOMServer.renderToStaticMarkup(blockHTML.empty);
+          } else {
+            html = blockHTML.empty;
+          }
+        }
+  
+        return closeNestTags + openNestTags + html;
+      })
+      .join('');
+  
+    result = listStack.reduce((res, nestBlock) => {
+      return res + getNestedBlockTags(getBlockHTML(nestBlock)).nestEnd;
+    }, result);
+  
+    return result;
+  }
+  const rawState = convertToRaw(contentState);
+ 
+  return blocksConvert(rawState.blocks)
 
-      return closeNestTags + openNestTags + html;
-    })
-    .join('');
-
-  result = listStack.reduce((res, nestBlock) => {
-    return res + getNestedBlockTags(getBlockHTML(nestBlock)).nestEnd;
-  }, result);
-
-  return result;
+ 
+  
 };
 
 export default (...args) => {
