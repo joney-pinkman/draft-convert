@@ -63,7 +63,10 @@ const convertToHTML = ({
         if (!blockHTMLResult.nest) {
           // this block can't be nested, so reset all nesting if necessary
           closeNestTags = listStack.reduceRight((string, nestedBlock) => {
-            return string + getNestedBlockTags(getBlockHTML(nestedBlock)).nestEnd;
+            return (
+              string +
+              getNestedBlockTags(getBlockHTML(nestedBlock), depth).nestEnd
+            );
           }, '');
           listStack = [];
         } else {
@@ -74,28 +77,34 @@ const convertToHTML = ({
             if (depth + 1 === listStack.length) {
               // depth is right but doesn't match type
               const blockToClose = listStack[depth];
-              closeNestTags += getNestedBlockTags(getBlockHTML(blockToClose))
-                .nestEnd;
-              openNestTags += getNestedBlockTags(blockHTMLResult).nestStart;
+              closeNestTags += getNestedBlockTags(
+                getBlockHTML(blockToClose),
+                depth
+              ).nestEnd;
+              openNestTags += getNestedBlockTags(getBlockHTML(block), depth)
+                .nestStart;
               listStack[depth] = block;
             } else if (depth + 1 < listStack.length) {
               const blockToClose = listStack[listStack.length - 1];
-              closeNestTags += getNestedBlockTags(getBlockHTML(blockToClose))
-                .nestEnd;
+              closeNestTags += getNestedBlockTags(
+                getBlockHTML(blockToClose),
+                depth
+              ).nestEnd;
               listStack = listStack.slice(0, -1);
             } else {
-              openNestTags += getNestedBlockTags(blockHTMLResult).nestStart;
+              openNestTags += getNestedBlockTags(getBlockHTML(block), depth)
+                .nestStart;
               listStack.push(block);
             }
           }
         }
-        
+  
         const innerHTML = block.children && block.children.length ? blocksConvert(block.children) : blockInlineStyles(
           blockEntities(encodeBlock(block), rawState.entityMap, entityToHTML),
           styleToHTML
         );
   
-        const blockHTML = getBlockTags(blockHTMLResult);
+        const blockHTML = getBlockTags(getBlockHTML(block));
   
         let html;
   
@@ -121,17 +130,18 @@ const convertToHTML = ({
       .join('');
   
     result = listStack.reduce((res, nestBlock) => {
-      return res + getNestedBlockTags(getBlockHTML(nestBlock)).nestEnd;
+      return (
+        res + getNestedBlockTags(getBlockHTML(nestBlock), nestBlock.depth).nestEnd
+      );
     }, result);
+      
+
   
     return result;
   }
   const rawState = convertToRaw(contentState);
  
   return blocksConvert(rawState.blocks)
-
- 
-  
 };
 
 export default (...args) => {
